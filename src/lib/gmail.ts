@@ -131,6 +131,7 @@ export type ChatMessage = {
   snippet: string;
   text: string;
   mine: boolean;
+  messageIdHeader: string;
 };
 
 export type ChatThread = {
@@ -170,6 +171,7 @@ export async function getAnimocaThreads(accessToken: string, refreshToken?: stri
         const to = extractHeader(headers, "To");
         const date = extractHeader(headers, "Date");
         const subject = extractHeader(headers, "Subject");
+        const messageIdHeader = extractHeader(headers, "Message-ID");
         const text = cleanWhitespace(payloadToPlainText(message.payload));
         const fromEmails = extractEmailAddresses(from);
         const toEmails = extractEmailAddresses(to);
@@ -183,6 +185,7 @@ export async function getAnimocaThreads(accessToken: string, refreshToken?: stri
           snippet: message.snippet || "",
           text,
           mine,
+          messageIdHeader,
           subject,
           participants: [...new Set([...fromEmails, ...toEmails])],
         };
@@ -215,23 +218,32 @@ export async function sendReply({
   to,
   subject,
   body,
+  threadId,
+  inReplyTo,
 }: {
   accessToken: string;
   refreshToken?: string;
   to: string;
   subject: string;
   body: string;
+  threadId?: string;
+  inReplyTo?: string;
 }) {
   const auth = setClientTokens(accessToken, refreshToken);
   const gmail = google.gmail({ version: "v1", auth });
 
-  const message = [
+  const headers = [
     `To: ${to}`,
     `Subject: ${subject.startsWith("Re:") ? subject : `Re: ${subject}`}`,
     "Content-Type: text/plain; charset=utf-8",
-    "",
-    body,
-  ].join("\n");
+  ];
+
+  if (inReplyTo) {
+    headers.push(`In-Reply-To: ${inReplyTo}`);
+    headers.push(`References: ${inReplyTo}`);
+  }
+
+  const message = [...headers, "", body].join("\n");
 
   const encodedMessage = Buffer.from(message)
     .toString("base64")
@@ -243,6 +255,7 @@ export async function sendReply({
     userId: "me",
     requestBody: {
       raw: encodedMessage,
+      threadId,
     },
   });
 }

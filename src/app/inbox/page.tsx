@@ -133,6 +133,12 @@ export default async function InboxPage({
                   <input type="hidden" name="refresh_token" value={refreshToken || ""} />
                   <input type="hidden" name="to" value={selectedThread.participants[0] || ""} />
                   <input type="hidden" name="subject" value={selectedThread.subject} />
+                  <input type="hidden" name="thread_id" value={selectedThread.id} />
+                  <input
+                    type="hidden"
+                    name="in_reply_to"
+                    value={selectedThread.messages[selectedThread.messages.length - 1]?.messageIdHeader || ""}
+                  />
                   <div className="text-sm font-medium text-zinc-300">Reply</div>
                   <textarea
                     name="body"

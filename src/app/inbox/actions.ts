@@ -8,6 +8,8 @@ export async function sendReplyAction(formData: FormData) {
   const to = String(formData.get("to") || "");
   const subject = String(formData.get("subject") || "");
   const body = String(formData.get("body") || "");
+  const threadId = String(formData.get("thread_id") || "");
+  const inReplyTo = String(formData.get("in_reply_to") || "");
 
   if (!accessToken || !to || !subject || !body) {
     throw new Error("Missing reply fields.");
@@ -19,5 +21,7 @@ export async function sendReplyAction(formData: FormData) {
     to,
     subject,
     body,
+    threadId: threadId || undefined,
+    inReplyTo: inReplyTo || undefined,
   });
 }
