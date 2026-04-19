@@ -10,10 +10,22 @@ export async function sendReplyAction(formData: FormData) {
   const body = String(formData.get("body") || "");
   const threadId = String(formData.get("thread_id") || "");
   const inReplyTo = String(formData.get("in_reply_to") || "");
+  const attachment = formData.get("attachment");
 
   if (!accessToken || !to || !subject || !body) {
     throw new Error("Missing reply fields.");
   }
+
+  const attachments =
+    attachment instanceof File && attachment.size > 0
+      ? [
+          {
+            filename: attachment.name || "attachment",
+            mimeType: attachment.type || "application/octet-stream",
+            content: Buffer.from(await attachment.arrayBuffer()),
+          },
+        ]
+      : [];
 
   await sendReply({
     accessToken,
@@ -23,5 +35,6 @@ export async function sendReplyAction(formData: FormData) {
     body,
     threadId: threadId || undefined,
     inReplyTo: inReplyTo || undefined,
+    attachments,
   });
 }

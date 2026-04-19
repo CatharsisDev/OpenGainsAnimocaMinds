@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { sendReplyAction } from "./actions";
 import { AutoRefresh } from "./auto-refresh";
+import { ReplyForm } from "./reply-form";
 import { exchangeCodeForTokens, getAnimocaThreads, getAuthUrl, hasGoogleOAuthConfig } from "@/lib/gmail";
 
 function formatDate(value: string) {
@@ -177,32 +178,15 @@ export default async function InboxPage({
                   ))}
                 </div>
 
-                <form action={sendReplyAction} className="mt-6 rounded-3xl border border-white/10 bg-black/20 p-4 lg:mt-4">
-                  <input type="hidden" name="access_token" value={accessToken} />
-                  <input type="hidden" name="refresh_token" value={refreshToken || ""} />
-                  <input type="hidden" name="to" value={selectedThread.participants[0] || ""} />
-                  <input type="hidden" name="subject" value={selectedThread.subject} />
-                  <input type="hidden" name="thread_id" value={selectedThread.id} />
-                  <input
-                    type="hidden"
-                    name="in_reply_to"
-                    value={selectedThread.messages[selectedThread.messages.length - 1]?.messageIdHeader || ""}
-                  />
-                  <div className="text-sm font-medium text-zinc-300">Reply</div>
-                  <textarea
-                    name="body"
-                    placeholder="Write a reply..."
-                    className="mt-3 min-h-32 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-500"
-                  />
-                  <div className="mt-3 flex justify-end">
-                    <button
-                      type="submit"
-                      className="rounded-full bg-cyan-300 px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200"
-                    >
-                      Send reply
-                    </button>
-                  </div>
-                </form>
+                <ReplyForm
+                  action={sendReplyAction}
+                  accessToken={accessToken}
+                  refreshToken={refreshToken}
+                  to={selectedThread.participants[0] || ""}
+                  subject={selectedThread.subject}
+                  threadId={selectedThread.id}
+                  inReplyTo={selectedThread.messages[selectedThread.messages.length - 1]?.messageIdHeader || ""}
+                />
               </article>
             ) : (
               <div className="chat-shell rounded-[2rem] p-8 text-zinc-400">No conversation selected yet.</div>

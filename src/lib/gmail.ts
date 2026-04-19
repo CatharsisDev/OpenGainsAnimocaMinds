@@ -127,12 +127,17 @@ function payloadToPlainText(payload: {
 function collectAttachments(payload: any, acc: { filename: string; mimeType: string; attachmentId: string; inline: boolean }[] = []) {
   if (!payload) return acc;
 
-  if (payload.filename && payload.body?.attachmentId) {
+  const mimeType = String(payload.mimeType || "application/octet-stream");
+  const attachmentId = payload.body?.attachmentId || "";
+  const hasData = Boolean(payload.body?.data);
+  const filename = String(payload.filename || "").trim();
+
+  if ((filename || mimeType.startsWith("image/")) && (attachmentId || hasData)) {
     acc.push({
-      filename: payload.filename,
-      mimeType: payload.mimeType || "application/octet-stream",
-      attachmentId: payload.body.attachmentId,
-      inline: String(payload.mimeType || "").startsWith("image/"),
+      filename: filename || `attachment.${mimeType.split("/")[1] || "bin"}`,
+      mimeType,
+      attachmentId,
+      inline: mimeType.startsWith("image/"),
     });
   }
 
@@ -250,6 +255,7 @@ export async function sendReply({
   body,
   threadId,
   inReplyTo,
+  attachments = [],
 }: {
   accessToken: string;
   refreshToken?: string;
@@ -258,6 +264,7 @@ export async function sendReply({
   body: string;
   threadId?: string;
   inReplyTo?: string;
+  attachments?: { filename: string; mimeType: string; content: Buffer }[];
 }) {
   const auth = setClientTokens(accessToken, refreshToken);
   const gmail = google.gmail({ version: "v1", auth });
@@ -265,7 +272,7 @@ export async function sendReply({
   const headers = [
     `To: ${to}`,
     `Subject: ${subject.startsWith("Re:") ? subject : `Re: ${subject}`}`,
-    "Content-Type: text/plain; charset=utf-8",
+    "MIME-Version: 1.0",
   ];
 
   if (inReplyTo) {
@@ -273,7 +280,39 @@ export async function sendReply({
     headers.push(`References: ${inReplyTo}`);
   }
 
-  const message = [...headers, "", body].join("\n");
+  let message = "";
+
+  if (attachments.length) {
+    const boundary = `boundary_${Math.random().toString(36).slice(2)}`;
+    headers.push(`Content-Type: multipart/mixed; boundary="${boundary}"`);
+
+    const parts = [
+      `--${boundary}`,
+      "Content-Type: text/plain; charset=utf-8",
+      "Content-Transfer-Encoding: 7bit",
+      "",
+      body,
+      "",
+    ];
+
+    for (const attachment of attachments) {
+      parts.push(
+        `--${boundary}`,
+        `Content-Type: ${attachment.mimeType}; name="${attachment.filename.replace(/"/g, "")}"`,
+        `Content-Disposition: attachment; filename="${attachment.filename.replace(/"/g, "")}"`,
+        "Content-Transfer-Encoding: base64",
+        "",
+        attachment.content.toString("base64").replace(/(.{76})/g, "$1\n"),
+        "",
+      );
+    }
+
+    parts.push(`--${boundary}--`, "");
+    message = [...headers, "", ...parts].join("\n");
+  } else {
+    headers.push("Content-Type: text/plain; charset=utf-8");
+    message = [...headers, "", body].join("\n");
+  }
 
   const encodedMessage = Buffer.from(message)
     .toString("base64")
