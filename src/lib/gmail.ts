@@ -3,25 +3,32 @@ import { google } from "googleapis";
 const SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"];
 const TARGET_DOMAIN = process.env.TARGET_EMAIL_DOMAIN || "animocaminds.ai";
 
+function optionalEnv(name: string) {
+  return process.env[name] || "";
+}
+
 function env(name: string) {
-  const value = process.env[name];
+  const value = optionalEnv(name);
   if (!value) {
     throw new Error(`Missing environment variable: ${name}`);
   }
   return value;
 }
 
+export function hasGoogleOAuthConfig() {
+  return Boolean(optionalEnv("GOOGLE_CLIENT_ID") && optionalEnv("GOOGLE_CLIENT_SECRET") && optionalEnv("GOOGLE_REDIRECT_URI"));
+}
+
 export function getOAuthClient() {
-  const client = new google.auth.OAuth2(
+  return new google.auth.OAuth2(
     env("GOOGLE_CLIENT_ID"),
     env("GOOGLE_CLIENT_SECRET"),
     env("GOOGLE_REDIRECT_URI"),
   );
-
-  return client;
 }
 
 export function getAuthUrl() {
+  if (!hasGoogleOAuthConfig()) return "";
   return getOAuthClient().generateAuthUrl({
     access_type: "offline",
     prompt: "consent",
@@ -56,6 +63,13 @@ function extractHeader(headers: { name?: string | null; value?: string | null }[
 function extractEmailAddresses(value: string) {
   const matches = value.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [];
   return matches.map((email) => email.toLowerCase());
+}
+
+function stripQuotedText(text: string) {
+  return text
+    .split(/\nOn .*wrote:\n|\nFrom: .*\nSent: .*\n/i)[0]
+    .replace(/\n--\s*[\s\S]*$/i, "")
+    .trim();
 }
 
 function payloadToPlainText(payload: {
@@ -99,10 +113,13 @@ export async function getAnimocaThreads(accessToken: string, refreshToken?: stri
   const auth = setClientTokens(accessToken, refreshToken);
   const gmail = google.gmail({ version: "v1", auth });
 
+  const profile = await gmail.users.getProfile({ userId: "me" });
+  const myEmail = (profile.data.emailAddress || "").toLowerCase();
+
   const threadList = await gmail.users.threads.list({
     userId: "me",
     q: `@${TARGET_DOMAIN}`,
-    maxResults: 20,
+    maxResults: 30,
   });
 
   const threads = threadList.data.threads || [];
@@ -121,10 +138,11 @@ export async function getAnimocaThreads(accessToken: string, refreshToken?: stri
         const to = extractHeader(headers, "To");
         const date = extractHeader(headers, "Date");
         const subject = extractHeader(headers, "Subject");
-        const text = payloadToPlainText(message.payload);
+        const rawText = payloadToPlainText(message.payload);
+        const text = stripQuotedText(rawText);
         const fromEmails = extractEmailAddresses(from);
         const toEmails = extractEmailAddresses(to);
-        const mine = !fromEmails.some((email) => email.endsWith(`@${TARGET_DOMAIN}`));
+        const mine = fromEmails.includes(myEmail);
 
         return {
           id: message.id || Math.random().toString(36),
