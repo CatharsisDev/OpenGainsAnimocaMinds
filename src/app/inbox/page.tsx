@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { sendReplyAction } from "./actions";
 import { exchangeCodeForTokens, getAnimocaThreads, getAuthUrl, hasGoogleOAuthConfig } from "@/lib/gmail";
 
 function formatDate(value: string) {
@@ -62,14 +63,14 @@ export default async function InboxPage({
 
   return (
     <main className="min-h-screen text-white">
-      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-8">
+      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-5 sm:px-6 sm:py-8">
         <header className="chat-shell rounded-[2rem] px-6 py-5">
           <div className="text-sm uppercase tracking-[0.2em] text-cyan-300">OpenGains AnimocaMinds Inbox</div>
           <div className="mt-2 text-zinc-300">Showing Gmail conversations that include participants ending in @animocaminds.ai</div>
         </header>
 
-        <section className="grid gap-6 lg:grid-cols-[320px_1fr]">
-          <aside className="chat-shell rounded-[2rem] p-4">
+        <section className="grid gap-4 lg:grid-cols-[320px_1fr] lg:gap-6">
+          <aside className="chat-shell rounded-[2rem] p-3 sm:p-4">
             <div className="mb-4 text-sm uppercase tracking-[0.18em] text-zinc-400">Threads</div>
             <div className="space-y-3">
               {threads.length ? (
@@ -98,7 +99,7 @@ export default async function InboxPage({
 
           <section>
             {selectedThread ? (
-              <article id={`thread-${selectedThread.id}`} className="chat-shell rounded-[2rem] p-6">
+              <article id={`thread-${selectedThread.id}`} className="chat-shell rounded-[2rem] p-4 sm:p-6">
                 <div className="mb-5 border-b border-white/10 pb-4">
                   <div className="text-xs uppercase tracking-[0.18em] text-cyan-300">Conversation</div>
                   <h2 className="mt-2 text-2xl font-semibold text-white">{selectedThread.subject}</h2>
@@ -109,7 +110,7 @@ export default async function InboxPage({
                   {selectedThread.messages.map((message) => (
                     <div key={message.id} className={`flex ${message.mine ? "justify-end" : "justify-start"}`}>
                       <div
-                        className={`max-w-[82%] rounded-3xl px-4 py-3 shadow-lg ${
+                        className={`max-w-[90%] sm:max-w-[82%] rounded-3xl px-4 py-3 shadow-lg ${
                           message.mine ? "bg-cyan-300 text-slate-950" : "bg-[#1f2937] text-white"
                         }`}
                       >
@@ -126,6 +127,27 @@ export default async function InboxPage({
                     </div>
                   ))}
                 </div>
+
+                <form action={sendReplyAction} className="mt-6 rounded-3xl border border-white/10 bg-black/20 p-4">
+                  <input type="hidden" name="access_token" value={accessToken} />
+                  <input type="hidden" name="refresh_token" value={refreshToken || ""} />
+                  <input type="hidden" name="to" value={selectedThread.participants[0] || ""} />
+                  <input type="hidden" name="subject" value={selectedThread.subject} />
+                  <div className="text-sm font-medium text-zinc-300">Reply</div>
+                  <textarea
+                    name="body"
+                    placeholder="Write a reply..."
+                    className="mt-3 min-h-32 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-500"
+                  />
+                  <div className="mt-3 flex justify-end">
+                    <button
+                      type="submit"
+                      className="rounded-full bg-cyan-300 px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200"
+                    >
+                      Send reply
+                    </button>
+                  </div>
+                </form>
               </article>
             ) : (
               <div className="chat-shell rounded-[2rem] p-8 text-zinc-400">No conversation selected yet.</div>

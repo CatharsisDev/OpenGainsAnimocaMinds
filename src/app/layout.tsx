@@ -13,8 +13,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Gmail Chat Viewer",
-  description: "Chat-style Gmail viewer filtered to Animoca Minds conversations.",
+  title: "OpenGains AnimocaMinds",
+  description: "Chat-style inbox for AnimocaMinds agent conversations.",
+  applicationName: "OpenGains AnimocaMinds",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "OpenGains",
+  },
+  manifest: "/manifest.webmanifest",
 };
 
 export default function RootLayout({

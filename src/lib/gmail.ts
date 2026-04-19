@@ -1,9 +1,11 @@
 import { google } from "googleapis";
+import { convert } from "html-to-text";
 
 const SCOPES = [
   "openid",
   "https://www.googleapis.com/auth/userinfo.email",
   "https://www.googleapis.com/auth/gmail.readonly",
+  "https://www.googleapis.com/auth/gmail.send",
 ];
 const TARGET_DOMAIN = process.env.TARGET_EMAIL_DOMAIN || "animocaminds.ai";
 
@@ -69,11 +71,33 @@ function extractEmailAddresses(value: string) {
   return matches.map((email) => email.toLowerCase());
 }
 
+function cleanWhitespace(text: string) {
+  return text
+    .replace(/\r/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]+\n/g, "\n")
+    .trim();
+}
+
 function stripQuotedText(text: string) {
   return text
-    .split(/\nOn .*wrote:\n|\nFrom: .*\nSent: .*\n/i)[0]
+    .split(/\nOn .*wrote:\n|\nAm .* schrieb .*:\n|\nFrom: .*\nSent: .*\n|\n>+/i)[0]
     .replace(/\n--\s*[\s\S]*$/i, "")
+    .replace(/Sent from my iPhone[\s\S]*$/i, "")
     .trim();
+}
+
+function htmlToCleanText(html: string) {
+  const converted = convert(html, {
+    wordwrap: 120,
+    selectors: [
+      { selector: "a", options: { ignoreHref: true } },
+      { selector: "img", format: "skip" },
+      { selector: "blockquote", options: { leadingLineBreaks: 1, trailingLineBreaks: 1 } },
+    ],
+  });
+
+  return cleanWhitespace(stripQuotedText(converted));
 }
 
 function payloadToPlainText(payload: {
@@ -87,12 +111,16 @@ function payloadToPlainText(payload: {
     return decodeBase64Url(payload.body?.data || undefined);
   }
 
+  if (payload.mimeType === "text/html") {
+    return htmlToCleanText(decodeBase64Url(payload.body?.data || undefined));
+  }
+
   for (const part of payload.parts || []) {
     const value = payloadToPlainText(part);
     if (value) return value;
   }
 
-  return decodeBase64Url(payload.body?.data || undefined);
+  return cleanWhitespace(stripQuotedText(decodeBase64Url(payload.body?.data || undefined)));
 }
 
 export type ChatMessage = {
@@ -142,8 +170,7 @@ export async function getAnimocaThreads(accessToken: string, refreshToken?: stri
         const to = extractHeader(headers, "To");
         const date = extractHeader(headers, "Date");
         const subject = extractHeader(headers, "Subject");
-        const rawText = payloadToPlainText(message.payload);
-        const text = stripQuotedText(rawText);
+        const text = cleanWhitespace(payloadToPlainText(message.payload));
         const fromEmails = extractEmailAddresses(from);
         const toEmails = extractEmailAddresses(to);
         const mine = fromEmails.includes(myEmail);
@@ -180,4 +207,42 @@ export async function getAnimocaThreads(accessToken: string, refreshToken?: stri
   );
 
   return detailedThreads.filter(Boolean) as ChatThread[];
+}
+
+export async function sendReply({
+  accessToken,
+  refreshToken,
+  to,
+  subject,
+  body,
+}: {
+  accessToken: string;
+  refreshToken?: string;
+  to: string;
+  subject: string;
+  body: string;
+}) {
+  const auth = setClientTokens(accessToken, refreshToken);
+  const gmail = google.gmail({ version: "v1", auth });
+
+  const message = [
+    `To: ${to}`,
+    `Subject: ${subject.startsWith("Re:") ? subject : `Re: ${subject}`}`,
+    "Content-Type: text/plain; charset=utf-8",
+    "",
+    body,
+  ].join("\n");
+
+  const encodedMessage = Buffer.from(message)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+
+  return gmail.users.messages.send({
+    userId: "me",
+    requestBody: {
+      raw: encodedMessage,
+    },
+  });
 }
