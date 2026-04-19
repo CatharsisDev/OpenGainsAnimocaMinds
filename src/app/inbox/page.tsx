@@ -1,6 +1,8 @@
+import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { sendReplyAction } from "./actions";
+import { AutoRefresh } from "./auto-refresh";
 import { exchangeCodeForTokens, getAnimocaThreads, getAuthUrl, hasGoogleOAuthConfig } from "@/lib/gmail";
 
 function formatDate(value: string) {
@@ -66,6 +68,7 @@ export default async function InboxPage({
   return (
     <main className="min-h-screen text-white">
       <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-5 sm:px-6 sm:py-8">
+        <AutoRefresh />
         <header className="chat-shell rounded-[2rem] px-6 py-5">
           <div className="flex items-center justify-between gap-4">
             <div>
@@ -137,12 +140,33 @@ export default async function InboxPage({
                           {message.text || message.snippet || "(No text body extracted)"}
                         </div>
                         {message.attachments.length ? (
-                          <div className={`mt-3 space-y-2 ${message.mine ? "text-slate-700" : "text-zinc-300"}`}>
-                            {message.attachments.map((attachment) => (
-                              <div key={attachment.attachmentId} className="rounded-2xl border border-white/10 bg-black/10 px-3 py-2 text-xs">
-                                {attachment.filename} · {attachment.mimeType}
-                              </div>
-                            ))}
+                          <div className={`mt-3 space-y-3 ${message.mine ? "text-slate-700" : "text-zinc-300"}`}>
+                            {message.attachments.map((attachment) => {
+                              const attachmentUrl = `/api/gmail/attachment?access_token=${encodeURIComponent(accessToken)}${refreshToken ? `&refresh_token=${encodeURIComponent(refreshToken)}` : ""}&messageId=${encodeURIComponent(message.id)}&attachmentId=${encodeURIComponent(attachment.attachmentId)}&filename=${encodeURIComponent(attachment.filename)}&mimeType=${encodeURIComponent(attachment.mimeType)}`;
+
+                              return (
+                                <div key={attachment.attachmentId} className="rounded-2xl border border-white/10 bg-black/10 p-2 text-xs">
+                                  {attachment.inline ? (
+                                    <a href={attachmentUrl} target="_blank" rel="noreferrer" className="block">
+                                      <Image
+                                        src={attachmentUrl}
+                                        alt={attachment.filename || "Image attachment"}
+                                        width={1200}
+                                        height={1200}
+                                        className="h-auto max-h-64 w-full rounded-2xl object-cover"
+                                        unoptimized
+                                      />
+                                    </a>
+                                  ) : null}
+                                  <div className={attachment.inline ? "mt-2" : ""}>
+                                    <a href={attachmentUrl} target="_blank" rel="noreferrer" className="font-medium underline underline-offset-2">
+                                      {attachment.filename || "Attachment"}
+                                    </a>
+                                    <div className="mt-1 opacity-75">{attachment.mimeType}</div>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         ) : null}
                         <div className={`mt-3 text-[11px] ${message.mine ? "text-slate-700" : "text-zinc-500"}`}>

@@ -124,7 +124,7 @@ function payloadToPlainText(payload: {
   return cleanWhitespace(stripQuotedText(decodeBase64Url(payload.body?.data || undefined)));
 }
 
-function collectAttachments(payload: any, acc: { filename: string; mimeType: string; attachmentId: string }[] = []) {
+function collectAttachments(payload: any, acc: { filename: string; mimeType: string; attachmentId: string; inline: boolean }[] = []) {
   if (!payload) return acc;
 
   if (payload.filename && payload.body?.attachmentId) {
@@ -132,6 +132,7 @@ function collectAttachments(payload: any, acc: { filename: string; mimeType: str
       filename: payload.filename,
       mimeType: payload.mimeType || "application/octet-stream",
       attachmentId: payload.body.attachmentId,
+      inline: String(payload.mimeType || "").startsWith("image/"),
     });
   }
 
@@ -146,6 +147,7 @@ export type ChatAttachment = {
   filename: string;
   mimeType: string;
   attachmentId: string;
+  inline: boolean;
 };
 
 export type ChatMessage = {
