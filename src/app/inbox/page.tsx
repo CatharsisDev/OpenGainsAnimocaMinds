@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { sendReplyAction } from "./actions";
 import { exchangeCodeForTokens, getAnimocaThreads, getAuthUrl, hasGoogleOAuthConfig } from "@/lib/gmail";
@@ -21,6 +22,7 @@ export default async function InboxPage({
   const code = typeof params.code === "string" ? params.code : undefined;
   const accessToken = typeof params.access_token === "string" ? params.access_token : undefined;
   const refreshToken = typeof params.refresh_token === "string" ? params.refresh_token : undefined;
+  const selectedThreadId = typeof params.thread === "string" ? params.thread : undefined;
 
   if (code && !accessToken) {
     const tokens = await exchangeCodeForTokens(code);
@@ -59,14 +61,24 @@ export default async function InboxPage({
   }
 
   const threads = await getAnimocaThreads(accessToken, refreshToken);
-  const selectedThread = threads[0];
+  const selectedThread = threads.find((thread) => thread.id === selectedThreadId) || threads[0];
 
   return (
     <main className="min-h-screen text-white">
       <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-5 sm:px-6 sm:py-8">
         <header className="chat-shell rounded-[2rem] px-6 py-5">
-          <div className="text-sm uppercase tracking-[0.2em] text-cyan-300">OpenGains AnimocaMinds Inbox</div>
-          <div className="mt-2 text-zinc-300">Showing Gmail conversations that include participants ending in @animocaminds.ai</div>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <div className="text-sm uppercase tracking-[0.2em] text-cyan-300">OpenGains AnimocaMinds Inbox</div>
+              <div className="mt-2 text-zinc-300">Showing Gmail conversations that include participants ending in @animocaminds.ai</div>
+            </div>
+            <Link
+              href={`/inbox?access_token=${encodeURIComponent(accessToken)}${refreshToken ? `&refresh_token=${encodeURIComponent(refreshToken)}` : ""}${selectedThread ? `&thread=${encodeURIComponent(selectedThread.id)}` : ""}&refresh=${Date.now()}`}
+              className="rounded-full border border-white/15 px-4 py-2 text-sm text-zinc-200 transition hover:bg-white/5"
+            >
+              Refresh
+            </Link>
+          </div>
         </header>
 
         <section className="grid gap-4 lg:grid-cols-[320px_1fr] lg:gap-6">
@@ -74,21 +86,25 @@ export default async function InboxPage({
             <div className="mb-4 text-sm uppercase tracking-[0.18em] text-zinc-400">Threads</div>
             <div className="space-y-3">
               {threads.length ? (
-                threads.map((thread, index) => (
-                  <a
-                    key={thread.id}
-                    href={`#thread-${thread.id}`}
-                    className={`block rounded-2xl border px-4 py-3 transition ${
-                      index === 0
-                        ? "border-cyan-300/50 bg-cyan-300/10"
-                        : "border-white/10 bg-black/10 hover:bg-white/5"
-                    }`}
-                  >
-                    <div className="line-clamp-2 text-sm font-semibold text-white">{thread.subject}</div>
-                    <div className="mt-2 text-xs text-zinc-400">{thread.participants.join(", ")}</div>
-                    <div className="mt-2 text-xs text-zinc-500">{formatDate(thread.lastDate)}</div>
-                  </a>
-                ))
+                threads.map((thread) => {
+                  const isSelected = selectedThread?.id === thread.id;
+                  const href = `/inbox?access_token=${encodeURIComponent(accessToken)}${refreshToken ? `&refresh_token=${encodeURIComponent(refreshToken)}` : ""}&thread=${encodeURIComponent(thread.id)}`;
+                  return (
+                    <Link
+                      key={thread.id}
+                      href={href}
+                      className={`block rounded-2xl border px-4 py-3 transition ${
+                        isSelected
+                          ? "border-cyan-300/50 bg-cyan-300/10"
+                          : "border-white/10 bg-black/10 hover:bg-white/5"
+                      }`}
+                    >
+                      <div className="line-clamp-2 text-sm font-semibold text-white">{thread.subject}</div>
+                      <div className="mt-2 text-xs text-zinc-400">{thread.participants.join(", ")}</div>
+                      <div className="mt-2 text-xs text-zinc-500">{formatDate(thread.lastDate)}</div>
+                    </Link>
+                  );
+                })
               ) : (
                 <div className="rounded-2xl border border-dashed border-white/10 px-4 py-10 text-center text-sm text-zinc-400">
                   No matching conversations found yet.
@@ -120,6 +136,15 @@ export default async function InboxPage({
                         <div className="mt-2 whitespace-pre-wrap text-sm leading-6">
                           {message.text || message.snippet || "(No text body extracted)"}
                         </div>
+                        {message.attachments.length ? (
+                          <div className={`mt-3 space-y-2 ${message.mine ? "text-slate-700" : "text-zinc-300"}`}>
+                            {message.attachments.map((attachment) => (
+                              <div key={attachment.attachmentId} className="rounded-2xl border border-white/10 bg-black/10 px-3 py-2 text-xs">
+                                {attachment.filename} · {attachment.mimeType}
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
                         <div className={`mt-3 text-[11px] ${message.mine ? "text-slate-700" : "text-zinc-500"}`}>
                           {formatDate(message.date)}
                         </div>

@@ -102,7 +102,8 @@ function htmlToCleanText(html: string) {
 
 function payloadToPlainText(payload: {
   mimeType?: string | null;
-  body?: { data?: string | null } | null;
+  filename?: string | null;
+  body?: { data?: string | null; attachmentId?: string | null } | null;
   parts?: any[] | null;
 } | undefined): string {
   if (!payload) return "";
@@ -123,6 +124,30 @@ function payloadToPlainText(payload: {
   return cleanWhitespace(stripQuotedText(decodeBase64Url(payload.body?.data || undefined)));
 }
 
+function collectAttachments(payload: any, acc: { filename: string; mimeType: string; attachmentId: string }[] = []) {
+  if (!payload) return acc;
+
+  if (payload.filename && payload.body?.attachmentId) {
+    acc.push({
+      filename: payload.filename,
+      mimeType: payload.mimeType || "application/octet-stream",
+      attachmentId: payload.body.attachmentId,
+    });
+  }
+
+  for (const part of payload.parts || []) {
+    collectAttachments(part, acc);
+  }
+
+  return acc;
+}
+
+export type ChatAttachment = {
+  filename: string;
+  mimeType: string;
+  attachmentId: string;
+};
+
 export type ChatMessage = {
   id: string;
   from: string;
@@ -132,6 +157,7 @@ export type ChatMessage = {
   text: string;
   mine: boolean;
   messageIdHeader: string;
+  attachments: ChatAttachment[];
 };
 
 export type ChatThread = {
@@ -176,6 +202,7 @@ export async function getAnimocaThreads(accessToken: string, refreshToken?: stri
         const fromEmails = extractEmailAddresses(from);
         const toEmails = extractEmailAddresses(to);
         const mine = fromEmails.includes(myEmail);
+        const attachments = collectAttachments(message.payload);
 
         return {
           id: message.id || Math.random().toString(36),
@@ -186,6 +213,7 @@ export async function getAnimocaThreads(accessToken: string, refreshToken?: stri
           text,
           mine,
           messageIdHeader,
+          attachments,
           subject,
           participants: [...new Set([...fromEmails, ...toEmails])],
         };
