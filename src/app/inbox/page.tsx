@@ -64,8 +64,8 @@ export default async function InboxPage({
   const selectedThread = threads.find((thread) => thread.id === selectedThreadId) || threads[0];
 
   return (
-    <main className="min-h-screen text-white">
-      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-5 sm:px-6 sm:py-8">
+    <main className="min-h-screen text-white lg:h-screen lg:overflow-hidden">
+      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-5 sm:px-6 sm:py-8 lg:h-screen lg:overflow-hidden">
         <header className="chat-shell rounded-[2rem] px-6 py-5">
           <div className="flex items-center justify-between gap-4">
             <div>
@@ -81,8 +81,8 @@ export default async function InboxPage({
           </div>
         </header>
 
-        <section className="grid gap-4 lg:grid-cols-[320px_1fr] lg:gap-6">
-          <aside className="chat-shell rounded-[2rem] p-3 sm:p-4">
+        <section className="grid gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[320px_1fr] lg:gap-6">
+          <aside className="chat-shell rounded-[2rem] p-3 sm:p-4 lg:min-h-0 lg:overflow-y-auto">
             <div className="mb-4 text-sm uppercase tracking-[0.18em] text-zinc-400">Threads</div>
             <div className="space-y-3">
               {threads.length ? (
@@ -113,16 +113,16 @@ export default async function InboxPage({
             </div>
           </aside>
 
-          <section>
+          <section className="lg:min-h-0">
             {selectedThread ? (
-              <article id={`thread-${selectedThread.id}`} className="chat-shell rounded-[2rem] p-4 sm:p-6">
+              <article id={`thread-${selectedThread.id}`} className="chat-shell rounded-[2rem] p-4 sm:p-6 lg:flex lg:h-full lg:min-h-0 lg:flex-col">
                 <div className="mb-5 border-b border-white/10 pb-4">
                   <div className="text-xs uppercase tracking-[0.18em] text-cyan-300">Conversation</div>
                   <h2 className="mt-2 text-2xl font-semibold text-white">{selectedThread.subject}</h2>
                   <div className="mt-2 text-sm text-zinc-400">{selectedThread.participants.join(", ")}</div>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-4 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-2 chat-scroll-area">
                   {selectedThread.messages.map((message) => (
                     <div key={message.id} className={`flex ${message.mine ? "justify-end" : "justify-start"}`}>
                       <div
@@ -153,7 +153,7 @@ export default async function InboxPage({
                   ))}
                 </div>
 
-                <form action={sendReplyAction} className="mt-6 rounded-3xl border border-white/10 bg-black/20 p-4">
+                <form action={sendReplyAction} className="mt-6 rounded-3xl border border-white/10 bg-black/20 p-4 lg:mt-4">
                   <input type="hidden" name="access_token" value={accessToken} />
                   <input type="hidden" name="refresh_token" value={refreshToken || ""} />
                   <input type="hidden" name="to" value={selectedThread.participants[0] || ""} />

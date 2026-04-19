@@ -12,13 +12,17 @@
   --font-mono: var(--font-geist-mono);
 }
 
+html,
+body {
+  min-height: 100vh;
+}
+
 body {
   background:
     radial-gradient(circle at top, rgba(34, 211, 238, 0.12), transparent 28%),
     linear-gradient(180deg, #0f172a 0%, #111827 100%);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
-  min-height: 100vh;
 }
 
 .chat-shell {
@@ -26,4 +30,24 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
   backdrop-filter: blur(16px);
+}
+
+.chat-scroll-area {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(103, 232, 249, 0.35) transparent;
+}
+
+.chat-scroll-area::-webkit-scrollbar {
+  width: 10px;
+}
+
+.chat-scroll-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-scroll-area::-webkit-scrollbar-thumb {
+  background: rgba(103, 232, 249, 0.28);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
